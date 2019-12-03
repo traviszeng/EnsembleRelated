@@ -11,12 +11,24 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
 
 """
-    A method which can be used for sklearn library training and xgboost, lightgbm and catboost
+    A method which can be used for sklearn library training and xgboost, lightgbm and catboost 
 """
 n_fold = 10 #10折交叉验证
 folds = KFold(n_splits = n_fold,shuffle = True,random_state = 42)
 def train_model(X, X_test, y, params=None, folds=folds,
                 model_type='lgb', plot_feature_importance=False, model=None):
+    """
+
+    :param X: 训练集输入
+    :param X_test:
+    :param y: 训练集y
+    :param params: 相关参数
+    :param folds: 交叉验证折数
+    :param model_type: lgb、xgb、cat、rfr或者sklearn
+    :param plot_feature_importance: 是否plot feature importance
+    :param model:
+    :return:
+    """
     oof = np.zeros(X.shape[0])  # 生成一个跟X行数一样长的零矩阵
     prediction = np.zeros(X_test.shape[0])
     scores = []
@@ -28,6 +40,17 @@ def train_model(X, X_test, y, params=None, folds=folds,
         else:
             X_train, X_valid = X.values[train_index], X.values[valid_index]
         y_train, y_valid = y[train_index], y[valid_index]
+
+        if model_type == 'rfr':
+            """
+                注意randomforest对nan敏感 需要做处理
+            """
+            model = model
+            model.fit(X_train, y_train)
+            y_pred_valid = model.predict(X_valid).reshape(-1, )
+            score = mean_squared_error(y_valid, y_pred_valid)
+
+            y_pred = model.predict(X_test)
 
         if model_type == 'lgb':
             """
@@ -111,3 +134,5 @@ def train_model(X, X_test, y, params=None, folds=folds,
 
     else:
         return oof, prediction
+
+
