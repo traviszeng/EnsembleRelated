@@ -135,4 +135,39 @@ def train_model(X, X_test, y, params=None, folds=folds,
     else:
         return oof, prediction
 
+"""
+stacking的实现：
+    对于每一轮的 5-fold，Model 1都要做满5次的训练和预测。
+    这一步产生的预测值我们可以转成 890 X 1 （890 行，1列），记作 P1 (大写P)
+    对于每一轮的 k-fold，每次训练的model都要预测所有的test data，会得到k*len(x_test)的预测值矩阵
+    然后我们根据行来就平均值，最后得到一个1*len(x_test)
+    
+    每一层的每一个模型都重复上述的步骤，
+    来自5-fold的预测值矩阵 890 X 3 作为你的Train Data，训练第二层的模型
+    来自Test Data预测值矩阵 418 X 3 就是你的Test Data，用训练好的模型来预测他们。
+"""
+#Out-of-fold predictions a sample of stacking
+ntrain = 891 #train.shape[0]
+ntest = 418 #test.shape[0]
+kf = KFold(n_splits=5,random_state=2019) #5折交叉验证
+
+def get_oof(clf,x_train,y_train,x_test):
+    oof_train = np.zeros((ntrain,)) #1 * 891
+    oof_test = np.zeros((ntest,)) #1 * 418
+    oof_test_skf = np.empty((5,ntest)) #5 * 418
+
+    for i, (train_index,test_index) in enumerate(kf.split(x_train)):    #x_train:891 *n -->n为特征纬度
+        kf_x_train = x_train[train_index]   # 4/5 training sample e.g. 712 * 7
+        kf_y_train = y_train[train_index]   # 4/5 training label e.g. 712 * 1
+        kf_x_test = x_train[test_index] # 1/5 training sample for validation e.g. 178 training sample
+
+        clf.fit(kf_x_train,kf_y_train)
+
+        oof_train[test_index] = clf.predict(kf_x_test) # 1* 179 =====> will be 1*891 after 5 folds
+        oof_test_skf[i,:] =clf.predict(x_test) # oof_test_skf[i,:]: 1*418
+    """
+    得到一个 5 X 418 的预测值矩阵。然后我们根据行来就平均值，最后得到一个 1 X 418 的平均预测值。
+    """
+    oof_test[:] = oof_test_skf.mean(axis=0) # oof_test[:] 1*418
+    return oof_train.reshape(-1,1), oof_test.reshape(-1,1)
 
